@@ -3,6 +3,8 @@
 
 from binance.client import Client
 from varios import floor2
+import pandas as pd
+from binance.exceptions import BinanceAPIException
 
 
 class C_Simbolo:
@@ -25,31 +27,31 @@ class C_Simbolo:
 
     def __init__(self, **kwargs) -> None:
         """."""
+    
+        if(not ((set(kwargs.keys()) == set(['simbolo'])) or (set(kwargs.keys()) == set(['monedaBase', 'monedaCotizada'])))):
+            raise ValueError('Parametros de entrada para C_Simbolo son erroneos.')
+               
+        if(set(kwargs.keys()) == set(['simbolo'])):
 
-        try:
-            
-            if(set(kwargs.keys()) == set(['_symbol'])):
-
-                self.simbolo = kwargs['_symbol'].upper()
-                self.monedaBase = 'base'
-                self.monedaCotizada = 'cotizada'
+            self.simbolo = kwargs['simbolo'].upper()
+            self.monedaBase = 'base'
+            self.monedaCotizada = 'cotizada'
 
 
-            if(set(kwargs.keys()) == set(['monedaBase', 'monedaCotizada'])):
-        
-                self.monedaBase = kwargs['monedaBase'].upper()
-                self.monedaCotizada = kwargs['monedaCotizada'].upper()
-                self.simbolo = kwargs['monedaBase'].upper() + kwargs['monedaCotizada'].upper()
+        if(set(kwargs.keys()) == set(['monedaBase', 'monedaCotizada'])):
 
-        except KeyError:
-            
-            return
+            self.monedaBase = kwargs['monedaBase'].upper()
+            self.monedaCotizada = kwargs['monedaCotizada'].upper()
+            self.simbolo = kwargs['monedaBase'].upper() + kwargs['monedaCotizada'].upper()
         
         self.client = Client()
+
         self.simbol_info = self.client.get_symbol_info(self.simbolo)
 
-        #esto es para ver si el simbolo existe
         self.Refresh()
+    
+        if((len(self.order_book['asks']) == 0) or (len(self.order_book['bids']) == 0)):
+            raise ValueError('No fueron encontrados Bids o Asks.')
 
 
     def Simbol_info(self) -> dict:
@@ -190,3 +192,48 @@ class C_Simbolo:
             return {'status': ['ok', ''], 'out': cant}
 
         return {'status': ['error', 'no encontro LOT_SIZE'], 'out': -1}
+
+
+    def leer_velas(
+            self, 
+            _interval:str
+        ) -> dict:
+        """Extrae las velas de cierto simbolo (_symbol) 
+        para un timeframe (_interval)."""
+
+        try:
+            candles = self.client.get_klines(symbol = self.simbolo, interval = _interval)
+        except BinanceAPIException as error:
+            return {'status': ['error', str(error)], 'out': pd.DataFrame()}
+
+        dict_columnas = {
+            'Open time':'int64',
+            'Open':'float',
+            'High':'float',
+            'Low':'float',
+            'Close':'float',
+            'Volume':'float',
+            'Close time':'int64',
+            'Quote asset volume':'float',
+            'Number of trades':'int64',
+            'Taker buy base asset volume':'float',
+            'Taker buy quote asset volume':'float',
+            'Ignore':'float'
+            }
+
+        df = pd.DataFrame(candles, columns = dict_columnas.keys())
+
+        df = df.astype(dict_columnas)
+        df['Open time'] = pd.to_datetime(df['Open time'] / 1000, unit = 's')
+        df['Close time'] = pd.to_datetime(df['Close time'] / 1000, unit = 's')
+
+        """
+        df.sort_values(
+                by=['Open time'], 
+                ascending=False, 
+                ignore_index=True, 
+                inplace=True
+            )
+        """
+
+        return {'status': ['ok', ''], 'out': df}
