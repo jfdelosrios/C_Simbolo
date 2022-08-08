@@ -3,8 +3,28 @@
 
 from binance.client import Client
 from varios import floor2
-import pandas as pd
 from binance.exceptions import BinanceAPIException
+from os import makedirs
+from pandas import DataFrame, read_csv, to_datetime
+
+
+def leerDataFrameBinance(_path:str) -> dict[list[str,str], DataFrame]:
+    """Lee un dataFrame del directorio _path."""
+
+    # Este lo dejo por fuera de la clase para que:
+    # * No dependa de conexión a internet
+    # * Pueda ser llamado sin necesidad de crear un objeto simbolo.
+    
+    try:
+        df = read_csv('{}'.format(_path), index_col=0)
+    except FileNotFoundError as error:
+        return {'status': ['error', '{}'.format(error)], 'out': DataFrame()}
+
+    df['Open time'] = to_datetime(df['Open time'])
+    
+    df['Close time'] = to_datetime(df['Close time'])
+    
+    return {'status': ['ok', ''], 'out': df}
 
 
 class C_Simbolo:
@@ -16,7 +36,8 @@ class C_Simbolo:
 
     __init__(simbolo:str) -> None
 
-    Si el simbolo no existe dispara la excepcion binance.exceptions.BinanceAPIException
+    Si el simbolo no existe dispara la excepcion 
+    binance.exceptions.BinanceAPIException
 
     Cualquier informacion que requiriese buscar en:
     
@@ -26,7 +47,23 @@ class C_Simbolo:
     """
 
     def __init__(self, **kwargs) -> None:
-        """."""
+        """
+        Clase que representa un simbolo determinado. En la practica es como si 
+        tuviera dos constructores:
+
+        __init__(monedaBase:str, monedaCotizada:str) -> None
+
+        __init__(simbolo:str) -> None
+
+        Si el simbolo no existe dispara la excepcion 
+        binance.exceptions.BinanceAPIException
+
+        Cualquier informacion que requiriese buscar en:
+        
+        https://python-binance.readthedocs.io/en/latest/
+
+        https://binance-docs.github.io/apidocs/spot/en/#
+        """
     
         if(not ((set(kwargs.keys()) == set(['simbolo'])) or (set(kwargs.keys()) == set(['monedaBase', 'monedaCotizada'])))):
             raise ValueError('Parametros de entrada para C_Simbolo son erroneos.')
@@ -194,17 +231,50 @@ class C_Simbolo:
         return {'status': ['error', 'no encontro LOT_SIZE'], 'out': -1}
 
 
+    def descargarDataFrameBinance(
+            self,
+            _timeFrame:str, 
+            _path:str
+        ) -> dict[list[str,str]]:
+        """
+        Descarga un dataFrame de velas de cierto timeFrame (_timeFrame)
+        en el directorio _path.
+        """
+
+        dataFrameVelas = self.leer_velas(_timeFrame)
+
+        if(dataFrameVelas['status'][0] == 'error'):
+            return {'status': dataFrameVelas['status']}
+
+        makedirs(_path, exist_ok=True)
+
+        dataFrameVelas['out'].to_csv(
+                '{}\\{}-{}.csv'.format(_path, self.simbolo, _timeFrame)
+            )
+        
+        return {'status': ['ok', '']}
+
+
     def leer_velas(
             self, 
             _interval:str
-        ) -> dict:
-        """Extrae las velas de cierto simbolo (_symbol) 
-        para un timeframe (_interval)."""
+        ) -> dict[list, DataFrame]:
+        """
+        Extrae dataFrame de velas
+        para un timeframe (_interval). ver constantes KLINE_INTERVAL
+
+        https://python-binance.readthedocs.io/en/latest/constants.html
+        """
 
         try:
-            candles = self.client.get_klines(symbol = self.simbolo, interval = _interval)
+
+            candles = self.client.get_klines(
+                    symbol = self.simbolo, 
+                    interval = _interval, limit=1000
+                )
+
         except BinanceAPIException as error:
-            return {'status': ['error', str(error)], 'out': pd.DataFrame()}
+            return {'status': ['error', str(error)], 'out': DataFrame()}
 
         dict_columnas = {
             'Open time':'int64',
@@ -221,11 +291,11 @@ class C_Simbolo:
             'Ignore':'float'
             }
 
-        df = pd.DataFrame(candles, columns = dict_columnas.keys())
+        df = DataFrame(candles, columns = dict_columnas.keys())
 
         df = df.astype(dict_columnas)
-        df['Open time'] = pd.to_datetime(df['Open time'] / 1000, unit = 's')
-        df['Close time'] = pd.to_datetime(df['Close time'] / 1000, unit = 's')
+        df['Open time'] = to_datetime(df['Open time'] / 1000, unit = 's')
+        df['Close time'] = to_datetime(df['Close time'] / 1000, unit = 's')
 
         """
         df.sort_values(
