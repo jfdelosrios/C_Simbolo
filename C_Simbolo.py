@@ -4,27 +4,69 @@
 from binance.client import Client
 from varios import floor2
 from binance.exceptions import BinanceAPIException
+from requests.exceptions import ReadTimeout, ConnectTimeout
+from time import sleep
 from os import makedirs
-from pandas import DataFrame, read_csv, to_datetime
+from pandas import DataFrame, read_csv
+from progress_bar import InitBar
 
 
-def leerDataFrameBinance(_path:str) -> dict[list[str,str], DataFrame]:
+def leerDataFrame(_path:str) -> dict[list[str,str], DataFrame]:
     """Lee un dataFrame del directorio _path."""
 
-    # Este lo dejo por fuera de la clase para que:
-    # * No dependa de conexión a internet
-    # * Pueda ser llamado sin necesidad de crear un objeto simbolo.
-    
     try:
         df = read_csv('{}'.format(_path), index_col=0)
     except FileNotFoundError as error:
         return {'status': ['error', '{}'.format(error)], 'out': DataFrame()}
-
-    df['Open time'] = to_datetime(df['Open time'])
-    
-    df['Close time'] = to_datetime(df['Close time'])
     
     return {'status': ['ok', ''], 'out': df}
+
+
+def BuscarDataFrameSimbolo(
+        _simbolo:str, 
+        _timeFrame:str, 
+        _ini:int,
+        _cantBarras:int,
+        _descargar:bool,
+        _path:str,
+        _espera:float
+    ) -> dict[list[str, str], DataFrame]:
+    """
+    Busca dataframe de binance en en un cierto path:
+    * _simbolo: simbolo del dataFrame.
+    * _timeframe: TimeFrame del dataFrame.
+    * _ini: Fecha mas cercana mayor a la fecha de la barra ubicada en el
+                    indice 0,
+    * _cantBarras: Cantidad de barras hacia atras que va a descargar
+    * _descargar: Si esta en true descarga de la pagina web. 
+    * _path: donde se guarda el dataFrame que se descarga de binance.
+    * _espera: segundos que espera el programa para hacer una petición
+    """
+
+    if(_descargar):
+
+        try:
+            simbolo = C_Simbolo(simbolo = _simbolo)
+        except (ReadTimeout, ConnectTimeout, BinanceAPIException) as error:
+            return {'status': ['error', str(error)], 'out': DataFrame}
+
+        _dic_df = simbolo.descargarDataFrameBinance(
+                _timeFrame = _timeFrame, 
+                _path = _path,
+                ini = _ini,
+                cantBarras = _cantBarras,
+                espera = _espera
+            )
+
+        if(_dic_df['status'][0] == 'error'):
+            return _dic_df
+
+    _dic_df = leerDataFrame('{}\\{}-{}.csv'.format(_path, _simbolo, _timeFrame))
+
+    if(_dic_df['status'][0] == 'error'):
+        return _dic_df
+
+    return _dic_df
 
 
 class C_Simbolo:
@@ -43,7 +85,11 @@ class C_Simbolo:
     
     https://python-binance.readthedocs.io/en/latest/
 
-    https://binance-docs.github.io/apidocs/spot/en/#
+    https://binance-docs.github.io/apidocs/spot/en/
+
+    hay que poner esto en las excepciones cuando se intenta crear el objeto    
+        from requests.exceptions import ReadTimeout, ConnectTimeout
+        from binance.exceptions import BinanceAPIException
     """
 
     def __init__(self, **kwargs) -> None:
@@ -79,7 +125,7 @@ class C_Simbolo:
 
             self.monedaBase = kwargs['monedaBase'].upper()
             self.monedaCotizada = kwargs['monedaCotizada'].upper()
-            self.simbolo = kwargs['monedaBase'].upper() + kwargs['monedaCotizada'].upper()
+            self.simbolo = self.monedaBase + self.monedaCotizada
         
         self.client = Client()
 
@@ -233,20 +279,37 @@ class C_Simbolo:
 
     def descargarDataFrameBinance(
             self,
-            _timeFrame:str, 
-            _path:str
+            _timeFrame:str,
+            _ini:int,
+            _cantBarras:int,
+            _path:str,
+            _espera:float
         ) -> dict[list[str,str]]:
         """
         Descarga un dataFrame de velas de cierto timeFrame (_timeFrame)
         en el directorio _path.
+
+        Entradas:
+            
+            * _timeFrame: TimeFrame del simbolo a descargar,
+            * _ini: Fecha mas cercana mayor a la fecha de la barra ubicada en el
+                    indice 0,
+            * _cantBarras: Cantidad de barras hacia atras que va a descargar
+            * _path: Ruta donde sera guardado el archivo csv,
+            * _espera: segundos que espera el programa para hacer una petición
         """
 
-        dataFrameVelas = self.leer_velas(_timeFrame)
+        dataFrameVelas = self.generarDF(
+                _interval = _timeFrame,
+                ini = _ini,
+                cantBarras = _cantBarras,
+                espera = _espera
+            )
 
         if(dataFrameVelas['status'][0] == 'error'):
             return {'status': dataFrameVelas['status']}
 
-        makedirs(_path, exist_ok=True)
+        makedirs(_path, exist_ok = True)
 
         dataFrameVelas['out'].to_csv(
                 '{}\\{}-{}.csv'.format(_path, self.simbolo, _timeFrame)
@@ -255,26 +318,131 @@ class C_Simbolo:
         return {'status': ['ok', '']}
 
 
-    def leer_velas(
+    def scrapearTickers(
+            self,
+            _interval:str, 
+            _ini:int, 
+            cantBarras:str, 
+            _espera:float
+        ):
+        """
+        Usa web scraping para obtener tickers de cierto timeFrame. Donde:
+
+           * _interval: TimeFrame a consultar,
+
+           * _ini: Fecha mas cercana mayor a la fecha de la barra ubicada en el
+                    indice 0,
+
+           * cantBarras: Cantidad de barras hacia atras que va a descargar 
+
+           * _espera: segundos que espera el programa para hacer una petición
+        """
+
+        candles = []  
+        primera = True
+
+        pbar = InitBar()
+
+        totalBarras = cantBarras
+
+        while True:
+
+            if(cantBarras >= 1000):
+                    
+                sleep(_espera)
+                            
+                try:
+                            
+                    candles_tpm = self.client.get_klines(
+                            symbol = self.simbolo, 
+                            interval = _interval, 
+                            limit = 1000,
+                            endTime = _ini
+                        )
+                    
+                except BinanceAPIException as error:
+                    del pbar 
+
+                    return {'status': ['error', str(error)], 'out': candles}
+
+                cantBarras -= 1000
+
+                ini = candles_tpm[0][0]
+
+                if(primera):
+                    candles = candles_tpm.copy() + candles
+                    primera = False
+                else:
+                    candles = candles_tpm[: -1].copy() + candles
+
+            else:
+                
+                if(cantBarras == 0):
+                    
+                    pbar(100)
+
+                    del pbar 
+
+                    return {'status': ['ok', ''], 'out': candles}
+                    
+                sleep(_espera)
+                            
+                try:
+            
+                    candles_tpm = self.client.get_klines(
+                            symbol = self.simbolo, 
+                            interval = _interval, 
+                            limit = cantBarras,
+                            endTime = ini
+                        )
+                    
+                except BinanceAPIException as error:
+                    del pbar 
+
+                    return {'status': ['error', str(error)], 'out': candles}
+
+                if(primera):
+                    candles = candles_tpm.copy() + candles
+                    primera = False
+                else:
+                    candles = candles_tpm[: -1].copy() + candles
+
+                pbar(100)
+                
+                del pbar
+
+                return {'status': ['ok', ''], 'out': candles}
+             
+            pbar(len(candles) / totalBarras * 100)
+
+
+    def generarDF(
             self, 
-            _interval:str
-        ) -> dict[list, DataFrame]:
+            _interval:str,
+            _ini:int, 
+            _cantBarras:str,
+            _espera:float
+        ) -> dict[list[str, str], DataFrame]:
         """
-        Extrae dataFrame de velas
-        para un timeframe (_interval). ver constantes KLINE_INTERVAL
+        Genera dataFrame de velas para un timeframe (_interval). Donde:
+    
+         * _interval: TimeFrame a consultar, ver constantes KLINE_INTERVAL
+            https://python-binance.readthedocs.io/en/latest/constants.html
 
-        https://python-binance.readthedocs.io/en/latest/constants.html
+         * _ini: Fecha mas cercana mayor a la fecha de la barra ubicada en el
+                 indice 0,
+
+         * _cantBarras: Cantidad de barras hacia atras que va a descargar
+
+         * _espera: segundos que espera el programa para hacer una petición
         """
 
-        try:
-
-            candles = self.client.get_klines(
-                    symbol = self.simbolo, 
-                    interval = _interval, limit=1000
-                )
-
-        except BinanceAPIException as error:
-            return {'status': ['error', str(error)], 'out': DataFrame()}
+        dict_velas = self.scrapearTickers(
+                _interval = _interval,
+                ini = _ini,
+                cantBarras = _cantBarras,
+                espera = _espera
+            )
 
         dict_columnas = {
             'Open time':'int64',
@@ -291,19 +459,8 @@ class C_Simbolo:
             'Ignore':'float'
             }
 
-        df = DataFrame(candles, columns = dict_columnas.keys())
+        df = DataFrame(dict_velas['out'], columns = dict_columnas.keys())
 
         df = df.astype(dict_columnas)
-        df['Open time'] = to_datetime(df['Open time'] / 1000, unit = 's')
-        df['Close time'] = to_datetime(df['Close time'] / 1000, unit = 's')
 
-        """
-        df.sort_values(
-                by=['Open time'], 
-                ascending=False, 
-                ignore_index=True, 
-                inplace=True
-            )
-        """
-
-        return {'status': ['ok', ''], 'out': df}
+        return {'status': dict_velas['status'], 'out': df}
