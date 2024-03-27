@@ -53,9 +53,9 @@ def BuscarDataFrameSimbolo(
         _dic_df = simbolo.descargarDataFrameBinance(
                 _timeFrame = _timeFrame, 
                 _path = _path,
-                ini = _ini,
-                cantBarras = _cantBarras,
-                espera = _espera
+                _ini = _ini,
+                _cantBarras = _cantBarras,
+                _espera = _espera
             )
 
         if(_dic_df['status'][0] == 'error'):
@@ -301,9 +301,9 @@ class C_Simbolo:
 
         dataFrameVelas = self.generarDF(
                 _interval = _timeFrame,
-                ini = _ini,
-                cantBarras = _cantBarras,
-                espera = _espera
+                _ini = _ini,
+                _cantBarras = _cantBarras,
+                _espera = _espera
             )
 
         if(dataFrameVelas['status'][0] == 'error'):
@@ -393,7 +393,7 @@ class C_Simbolo:
                             symbol = self.simbolo, 
                             interval = _interval, 
                             limit = cantBarras,
-                            endTime = ini
+                            endTime = _ini
                         )
                     
                 except BinanceAPIException as error:
@@ -439,9 +439,9 @@ class C_Simbolo:
 
         dict_velas = self.scrapearTickers(
                 _interval = _interval,
-                ini = _ini,
+                _ini = _ini,
                 cantBarras = _cantBarras,
-                espera = _espera
+                _espera = _espera
             )
 
         dict_columnas = {
