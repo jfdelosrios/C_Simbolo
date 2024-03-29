@@ -1,5 +1,6 @@
 # C_Simbolo
 
+Libreria con un conjunto de funciones para obtener información de los simbolos de Binance.
 
 ## Archivos requeridos:
 
