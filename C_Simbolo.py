@@ -116,7 +116,7 @@ class C_Simbolo:
                
         if(set(kwargs.keys()) == set(['simbolo'])):
 
-            self.simbolo = kwargs['simbolo'].upper()
+            self.m_name = kwargs['simbolo'].upper()
             self.monedaBase = 'base'
             self.monedaCotizada = 'cotizada'
 
@@ -125,11 +125,11 @@ class C_Simbolo:
 
             self.monedaBase = kwargs['monedaBase'].upper()
             self.monedaCotizada = kwargs['monedaCotizada'].upper()
-            self.simbolo = self.monedaBase + self.monedaCotizada
+            self.m_name = self.monedaBase + self.monedaCotizada
         
         self.client = Client()
 
-        self.simbol_info = self.client.get_symbol_info(self.simbolo)
+        self.simbol_info = self.client.get_symbol_info(self.m_name)
 
         self.Refresh()
     
@@ -143,27 +143,27 @@ class C_Simbolo:
 
 
     def get_monedaBase(self) -> str:
-        """ """
+        """Retorna la moneda base del simbolo."""
 
         return self.monedaBase
 
 
     def get_monedaCotizada(self) -> str:
-        """ """
+        """Retorna la moneda cotizada del simbolo."""
 
         return self.monedaCotizada
 
 
     def Name(self) -> str:
-        """ """
+        """Retorna el nombre del simbolo."""
 
-        return self.simbolo
+        return self.m_name
 
 
     def Refresh(self) -> None:
-        """ """
+        """Refresca los datos del simbolo."""
 
-        self.order_book = self.client.get_order_book(symbol = self.simbolo)
+        self.order_book = self.client.get_order_book(symbol = self.m_name)
     
     def Order_book(self) -> dict:
         """Nivel 2"""
@@ -173,7 +173,7 @@ class C_Simbolo:
 
     
     def Ask(self) -> float:
-        """ """
+        """Retorna el precio ask mas bajo."""
 
         self.Refresh()
         return float(self.order_book['asks'][0][0])
@@ -189,7 +189,7 @@ class C_Simbolo:
     def avg_price(self) -> dict:
         """ """
         
-        return self.client.get_avg_price(symbol = self.simbolo)
+        return self.client.get_avg_price(symbol = self.m_name)
 
 
     def point(self) -> float:
@@ -312,7 +312,7 @@ class C_Simbolo:
         makedirs(_path, exist_ok = True)
 
         dataFrameVelas['out'].to_csv(
-                '{}\\{}-{}.csv'.format(_path, self.simbolo, _timeFrame)
+                '{}\\{}-{}.csv'.format(_path, self.m_name, _timeFrame)
             )
         
         return {'status': ['ok', '']}
@@ -354,7 +354,7 @@ class C_Simbolo:
                 try:
                             
                     candles_tpm = self.client.get_klines(
-                            symbol = self.simbolo, 
+                            symbol = self.m_name, 
                             interval = _interval, 
                             limit = 1000,
                             endTime = _ini
@@ -390,7 +390,7 @@ class C_Simbolo:
                 try:
             
                     candles_tpm = self.client.get_klines(
-                            symbol = self.simbolo, 
+                            symbol = self.m_name, 
                             interval = _interval, 
                             limit = cantBarras,
                             endTime = _ini
