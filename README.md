@@ -137,18 +137,7 @@ Refresca los datos del simbolo.
 
 
 ####    Metodo digits(self) -> int:
-        """cantidad de digitos decimales del precio."""
-
-        for i in self.Simbol_info()['filters']:
-
-            if(i['filterType'] != 'PRICE_FILTER'):
-                continue
-
-            string = i['tickSize']
-            string = string.rstrip('0')
-            return (len(string) - string.find('.') - 1)
-
-        return -1
+Retorna la cantidad de digitos decimales del precio. 
 
 
 ####    Metodo formatear_precio(self, precio:float) -> dict:
