@@ -107,7 +107,7 @@ Refresca los datos del simbolo.
 
     
 ####    Metodo Ask(self) -> float:
-        """Retorna el precio ask mas bajo."""
+        """Retorna el precio ask mas bajo.
 
     
 ####    Metodo Bid(self) -> float:
