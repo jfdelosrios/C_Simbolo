@@ -61,7 +61,7 @@ def BuscarDataFrameSimbolo(
     """ 
 
 ####    Metodo __init__(self, **kwargs) -> None:
-        """
+        ""
         Clase que representa un simbolo determinado. En la practica es como si 
         tuviera dos constructores:
 
