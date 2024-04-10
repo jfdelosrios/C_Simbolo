@@ -24,7 +24,7 @@ def BuscarDataFrameSimbolo(
         _path:str,
         _espera:float
     ) -> dict[list[str, str], DataFrame]:
-    """
+    ""
     Busca dataframe de binance en en un cierto path:
     * _simbolo: simbolo del dataFrame.
     * _timeframe: TimeFrame del dataFrame.
