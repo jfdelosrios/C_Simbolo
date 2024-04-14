@@ -38,7 +38,7 @@ def BuscarDataFrameSimbolo(
 
 
 ### Clase class C_Simbolo:
-    """
+    ""
     Clase que representa un simbolo determinado. En la practica es como si 
     tuviera dos constructores:
 
