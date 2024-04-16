@@ -12,7 +12,7 @@ Libreria con un conjunto de funciones para obtener información de los simbolos 
 ### Función leerDataFrame
 
 def leerDataFrame(_path:str) -> dict[list[str,str], DataFrame]:
-    ""Lee un dataFrame del directorio _path."
+    "Lee un dataFrame del directorio _path."
 
 ### Función BuscarDataFrameSimbolo
 def BuscarDataFrameSimbolo(
