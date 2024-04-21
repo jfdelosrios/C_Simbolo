@@ -77,7 +77,7 @@ def BuscarDataFrameSimbolo(
         https://python-binance.readthedocs.io/en/latest/
 
         https://binance-docs.github.io/apidocs/spot/en/#
-        ""
+        "
 
 ####    Metodo Simbol_info(self) -> dict:
         """ """
