@@ -58,7 +58,7 @@ def BuscarDataFrameSimbolo(
     hay que poner esto en las excepciones cuando se intenta crear el objeto    
         from requests.exceptions import ReadTimeout, ConnectTimeout
         from binance.exceptions import BinanceAPIException
-    """ 
+    ""
 
 ####    Metodo __init__(self, **kwargs) -> None:
         ""
