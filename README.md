@@ -111,7 +111,7 @@ Refresca los datos del simbolo.
 
     
 ####    Metodo Bid(self) -> float:
-        """ """
+        """ ""
 
         self.Refresh()
         return float(self.order_book['bids'][0][0])
