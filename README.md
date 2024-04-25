@@ -205,7 +205,7 @@ Retorna la cantidad de digitos decimales del precio.
             _path:str,
             _espera:float
         ) -> dict[list[str,str]]:
-        """
+        ""
         Descarga un dataFrame de velas de cierto timeFrame (_timeFrame)
         en el directorio _path.
 
